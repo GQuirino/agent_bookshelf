@@ -1,0 +1,5 @@
+{
+  "name": "ticket-to-merge",
+  "version": "0.1.0",
+  "description": "Ship a ticket with test-first build agents and read-only reviewers, behind a file guardrail."
+}
