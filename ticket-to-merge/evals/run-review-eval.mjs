@@ -39,6 +39,22 @@ function overlay(from, to) {
   }
 }
 
+// Assign a finding to the NEAREST planted bug in the same file (distance 0 = inside its range),
+// within a 3-line tolerance. Nearest, not first, so bugs on adjacent lines are not conflated.
+export function nearestBug(bugs, f) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const b of bugs) {
+    if (b.file !== f.file) continue;
+    const d = f.line < b.lines[0] ? b.lines[0] - f.line : f.line > b.lines[1] ? f.line - b.lines[1] : 0;
+    if (d <= 3 && d < bestDist) {
+      best = b;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
 function extractJson(text) {
   const a = text.indexOf('{');
   const b = text.lastIndexOf('}');
@@ -87,7 +103,7 @@ async function runCase(run, name) {
     const matchedFindings = [];
     const unmatched = [];
     for (const f of findings) {
-      const hit = bugs.find((b) => b.file === f.file && f.line >= b.lines[0] - 3 && f.line <= b.lines[1] + 3);
+      const hit = nearestBug(bugs, f);
       if (hit) {
         matchedBugs.add(hit.id);
         matchedFindings.push({ ...f, bug: hit.id });
@@ -96,8 +112,9 @@ async function runCase(run, name) {
     return {
       run, case: name, parsed_ok: Boolean(parsed), planted: bugs.length,
       found: [...matchedBugs], missed: bugs.map((b) => b.id).filter((id) => !matchedBugs.has(id)),
-      findings_total: findings.length, matched_findings: matchedFindings.length, unmatched,
+      findings_total: findings.length, matched_findings: matchedFindings.length, matched: matchedFindings, unmatched,
       cost_usd: j?.total_cost_usd ?? null, turns: j?.num_turns ?? null,
+      subagents: j?.subagent_stats?.by_type ?? null, denials: j?.permission_denials?.length ?? null, result_text: (j?.result || '').slice(0, 4000),
       usage: j?.modelUsage ?? null,
     };
   } finally {

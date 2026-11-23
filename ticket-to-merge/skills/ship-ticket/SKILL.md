@@ -6,6 +6,9 @@ allowed-tools: Agent, Skill, Read, Grep, Glob, Bash(npm run test:run*), Bash(npx
 ---
 You orchestrate one ticket from SPEC.md to a green build. You never write code yourself; the specialists do. Delegation prompts are short: the task, the file paths that matter, the constraints, and the return format. No transcripts, no reasoning of yours, no file contents.
 
+# Start mode
+If `$ARGUMENTS` starts with `review` (optionally followed by a base ref, default `origin/main`), the feature and its tests already exist on this branch (for example a PR to audit and fix). Skip the preflight baseline, Phase 1 and Phase 3. Read `SPEC.md`, run `touch .tests.lock`, run `npm run test:run` once to note the starting state (it may be red; that is information, not a stop), then go straight to Phase 4. Otherwise run the full flow below.
+
 # Preflight
 1. Read `SPEC.md` (the contract). If it is missing or ambiguous, stop and ask the user. Do not guess.
 2. Run `git status --short`. If the tree is dirty with unrelated changes, stop and say so.
@@ -28,7 +31,7 @@ Run `touch .tests.lock`. From now on `tests/` is read-only for every agent (the 
 
 # Phase 4: REVIEW and FIX (tests stay locked)
 Run up to 2 rounds. Each round:
-1. Invoke the `ticket-to-merge:review-pr` skill (base `origin/main`). It returns one deduplicated findings list from two read-only reviewers. Do not give the reviewers hints.
+1. Invoke the `ticket-to-merge:review-pr` skill with the base ref (`origin/main` unless a base was given after `review`). It returns one deduplicated findings list from two read-only reviewers. Do not give the reviewers hints.
 2. Act only on `high` and `medium` findings. Ignore `low`. If there are none, the loop is done.
 3. Judge each finding against SPEC.md before acting. A finding that contradicts SPEC.md or is out of scope is rejected: record it as "rejected, reason" in the report instead of changing code.
 4. Send the accepted findings, and only those, to `ticket-to-merge:be-writer` (task, file and line, the evidence, the SPEC line it breaks). Tests are locked. If a finding is only "a SPEC criterion has no test", run `rm -f .tests.lock`, call `ticket-to-merge:test-writer` for that one test, run `touch .tests.lock`, then continue.

@@ -15,6 +15,7 @@ You run a read-only review of the current branch. You do not edit anything and y
 Call `ticket-to-merge:review-security` and `ticket-to-merge:review-correctness` in parallel. Each prompt is identical and contains only: the changed paths, the non-test diff, and the line "SPEC.md is the contract. Return the JSON findings object only." Do not add your own opinions, hints or suspected bugs: an unprompted reviewer is the measurement.
 
 # Step 3: merge
+0. Wait until BOTH reviewers have returned a result. Never merge, and never answer, while either one is still running or has returned nothing. An empty findings list is only valid when it came back from a reviewer, not when a result is missing.
 1. Parse both JSON objects. If one is not valid JSON, ask that reviewer once to re-send JSON only; if still invalid, say so in the report instead of guessing.
 2. Drop any finding without `evidence`. Do not add findings of your own.
 3. Deduplicate: findings in the same file within 3 lines of each other that name the same root cause become one (keep the clearer `issue`, the higher severity, and record both reviewers in `found_by`).
@@ -22,6 +23,6 @@ Call `ticket-to-merge:review-security` and `ticket-to-merge:review-correctness` 
 
 # Step 4: report
 Return one JSON object and nothing after it:
-{"base":"<base>","reviewed_paths":[...],"findings":[{"file":"","line":0,"severity":"","issue":"","evidence":"","found_by":["security"|"correctness"]}]}
+{"base":"<base>","reviewed_paths":[...],"reviewers":{"security":"ok|invalid|no_response","correctness":"ok|invalid|no_response"},"findings":[{"file":"","line":0,"severity":"","issue":"","evidence":"","found_by":["security"|"correctness"]}]}
 
 An empty `findings` list is a valid result for clean code. Never pad it.
