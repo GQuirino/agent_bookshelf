@@ -153,3 +153,6 @@ vite.config.ts.timestamp-*
 # ticket-to-merge: implement-phase test lock
 .tests.lock
 .claude/stop-gate.count
+
+# plugin eval output (large, regenerable)
+ticket-to-merge/plugin-evals/results/

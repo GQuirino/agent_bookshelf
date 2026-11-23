@@ -1,11 +1,12 @@
 ---
 name: review-pr
-description: Review the current branch's diff against SPEC.md with two read-only reviewers (security and correctness) and return one deduplicated list of findings. Optional argument is the base ref (default origin/main). Reports only; never edits.
+description: Use whenever the user asks to review a branch, PR, diff or recent changes before merging. Reviews the branch diff against SPEC.md with two read-only reviewers (security and correctness) and returns one deduplicated JSON list of findings. Optional argument is the base ref (default origin/main, falls back to main). Reports only; never edits.
 allowed-tools: Agent, Read, Grep, Glob, Bash(git merge-base*), Bash(git diff*), Bash(git status*), Bash(git rev-parse*)
 ---
 You run a read-only review of the current branch. You do not edit anything and you do not fix findings. Base ref: `$ARGUMENTS` if given, otherwise `origin/main` (fall back to `main` if that ref does not exist).
 
 # Step 1: collect the diff
+Run every git command as its own separate Bash call: no `&&`, `;`, pipes, `$(...)` or shell variables. Chained commands do not match the allowed `git ...` patterns and get denied. If any git command is denied or fails, stop and report that, never answer with an empty findings list: "nothing to review" is only valid when `git diff --name-only` ran and returned nothing.
 1. `git merge-base HEAD <base>` gives the fork point `<sha>`.
 2. `git diff --name-only <sha>` gives every changed path (committed and uncommitted). If it is empty, answer `{"findings":[]}` and stop: there is nothing to review.
 3. `git diff <sha> -- . ':(exclude)tests'` gives the diff of non-test files. Test files are passed as paths only; the reviewers read them if they need to.

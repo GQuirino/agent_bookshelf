@@ -22,7 +22,7 @@ Ticket: **BOOK-101, search books by title or author** (`GET /api/books/search?q=
 | Planted bugs: recall and precision over 3 runs | [Proof](#proof) | recall 12/12, precision 12/12, 0 false positives on clean code |
 | Cost report with one lever, quality re-checked | [Cost report](#cost-report) | done; the lever gave no measurable saving (reported as such) |
 | Design: why this split, which models, what I'd cut | [Design](#design) | done |
-| Stretch (+5) | [Not done](#not-done--not-verified) | not attempted |
+| Stretch (+5) | [Plugin eval attempt](#stretch-claude-plugin-eval-attempted-no-valid-δ) | attempted, **no valid Δ** (blocked by the eval sandbox) |
 
 ## Packaging
 
@@ -132,9 +132,27 @@ Where the money actually goes: a review pass is ~$0.24, about 60% of a full run.
 
 ## Not done / not verified
 
-- Stretch (+5): no learning reviewer with project memory and no `claude plugin eval` delta.
+- Stretch (+5): no learning reviewer with project memory, and no valid `claude plugin eval` delta (see the section below).
 - No PR opened (branch is pushed to the fork only).
 - No manual `curl` against a running server, only supertest.
 - `%` and `_` in `q` are not escaped (documented in `SPEC.md` as out of scope), so `q=%` matches every book.
 - The test lock's Stop-hook gate never had to block in a live run (tests were green first time); it is covered by a scratch test only.
 - `claude plugin validate` passes with one warning: no plugin icon.
+
+## Stretch: `claude plugin eval` attempted, no valid Δ
+
+Cases are in `plugin-evals/` (`review-planted`: the 4 planted bugs, one grader per bug; `review-clean`: the real implementation, one no-false-positives grader; regenerate with `node plugin-evals/make-cases.mjs`). Run:
+
+```bash
+claude plugin eval ./ticket-to-merge --eval-dir plugin-evals --scaffold --trust-plugin --no-publish --model claude-sonnet-5-5 \
+  --allow-tools "Bash(git merge-base*)" "Bash(git diff*)" "Bash(git status*)" "Bash(git rev-parse*)" "Bash(git log*)"
+```
+
+**Result: I could not obtain a valid plugin-vs-no-plugin Δ.** In the eval's Bash sandbox, `/usr/bin/git` (the macOS shim) cannot write its cache under `/var/folders` and exits 72, so `/review-pr` cannot build its diff and stops without running the reviewers. Putting Homebrew git first on `PATH` did not help (the harness does not pass `PATH` through, and a case's `env` only accepts `EVAL_*` names). The no-plugin arm only reads files, so it is unaffected. The last full run therefore shows plugin 0.00 vs no plugin 0.92 on `review-planted`; that number measures the sandbox, not the reviewers, and I do not report it as a result. The clean case (0.67 both arms) is not informative either.
+
+What the attempt did surface, and fixed in `skills/review-pr/SKILL.md`:
+- **Discoverability:** with a natural prompt ("review my branch against main") the skill fired in 1 of 6 plugin-arm runs. After rewording the description to start with "Use whenever the user asks to review a branch, PR, diff or recent changes before merging" it fired in 6 of 6.
+- **Chained git commands:** the skill ran `sha=$(git merge-base ...) && git diff ...` as one command, which does not match `Bash(git ...)` allow-rules and was denied. It now runs each git command separately and must not answer with an empty findings list when git is denied or fails.
+- Not claimed: that this explains the one unexplained zero-findings run in the earlier eval (I cannot confirm it).
+
+The recall and precision numbers in [Proof](#proof) come from my own headless eval, not from `plugin eval`. Total spend on this attempt: about $8 (about 6 eval runs of 2 cases x 3 runs x 2 arms, plus debugging).
