@@ -34,7 +34,7 @@ Run up to 2 rounds. Each round:
 1. Invoke the `ticket-to-merge:review-pr` skill with the base ref (`origin/main` unless a base was given after `review`). It returns one deduplicated findings list from two read-only reviewers. Do not give the reviewers hints.
 2. Act only on `high` and `medium` findings. Ignore `low`. If there are none, the loop is done.
 3. Judge each finding against SPEC.md before acting. A finding that contradicts SPEC.md or is out of scope is rejected: record it as "rejected, reason" in the report instead of changing code.
-4. Send the accepted findings, and only those, to `ticket-to-merge:be-writer` (task, file and line, the evidence, the SPEC line it breaks). Tests are locked. If a finding is only "a SPEC criterion has no test", run `rm -f .tests.lock`, call `ticket-to-merge:test-writer` for that one test, run `touch .tests.lock`, then continue.
+4. Send the accepted findings, and only those, to `ticket-to-merge:be-writer` (task, file and line, the evidence, the SPEC line it breaks). Tests are locked.
 5. Verify yourself: `npm run test:run` and `npx tsc --noEmit`. Checkpoint: `git add src tests && git commit -m "Fix review findings (round N)"` with the body line "Revert with: git revert HEAD".
 Never run a third round. Anything still open after round 2 goes in the report as unresolved.
 
