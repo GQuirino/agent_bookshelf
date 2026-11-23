@@ -39,6 +39,8 @@ const planted = extract(CLEAN, path.join(tmp, 'planted'));
 overlay(path.join(repo, 'ticket-to-merge/evals/cases/planted'), planted);
 const subtle = extract(CLEAN, path.join(tmp, 'subtle'));
 overlay(path.join(here, 'overlays/subtle'), subtle);
+const screen = extract(CLEAN, path.join(tmp, 'screen'));
+overlay(path.join(here, 'overlays/screen'), screen);
 const variant = extract(CLEAN, path.join(tmp, 'variant'));
 overlay(path.join(repo, 'ticket-to-merge/evals/cases/clean-variant'), variant);
 
@@ -132,6 +134,31 @@ const cases = {
         'FAIL if it does not mention this.'),
       's6-repeated-q': llm(
         'PASS if the response reports that a repeated or non-string q (for example ?q=a&q=b) is coerced with String() and searched, instead of returning the 400 "Query must be a single string" required by SPEC.',
+        'FAIL if it does not mention this.'),
+      'skill-fired': '---\ntype: tool_used\ntool: Skill\ninput_match: \'"skill"\\s*:\\s*"(?:[\\w-]+:)?review-pr"\'\n---\n',
+    },
+  },
+  // Screening set for the learning-reviewer stretch: six quiet deviations from SPEC.md or CLAUDE.md. Committed before its first run.
+  'review-screen': {
+    head: screen,
+    graders: {
+      'c1-description-scope': llm(
+        'PASS if the response reports that the search also matches the description column (SPEC says title or author only), in src/models/book.ts.',
+        'FAIL if it does not mention this.'),
+      'c2-extra-field': llm(
+        'PASS if the response reports that the response body adds an extra "count" field that is not in the SPEC interface.',
+        'FAIL if it does not mention this.'),
+      'c3-no-match-404': llm(
+        'PASS if the response reports that a query with no matching books returns 404 with an error, instead of 200 with { "books": [] } as SPEC requires.',
+        'FAIL if it does not mention this.'),
+      'c4-text-error': llm(
+        'PASS if the response reports that the over-100-characters error is sent as plain text with .send() instead of the JSON { "error": "..." } body required by SPEC.md and CLAUDE.md.',
+        'FAIL if it does not mention this.'),
+      'c5-missing-js-suffix': llm(
+        'PASS if the response reports that the relative import of ../models/book is missing the .js suffix required by the ESM convention in CLAUDE.md and SPEC.md.',
+        'FAIL if it does not mention this.'),
+      'c6-router-all': llm(
+        'PASS if the response reports that the route is registered with router.all (accepts every HTTP method) instead of router.get.',
         'FAIL if it does not mention this.'),
       'skill-fired': '---\ntype: tool_used\ntool: Skill\ninput_match: \'"skill"\\s*:\\s*"(?:[\\w-]+:)?review-pr"\'\n---\n',
     },
