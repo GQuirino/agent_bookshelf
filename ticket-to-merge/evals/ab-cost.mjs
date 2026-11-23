@@ -16,6 +16,9 @@ const pluginDir = path.resolve(here, '..');
 const repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: here, encoding: 'utf8' }).trim();
 const arg = (n, d) => (process.argv.includes(`--${n}`) ? process.argv[process.argv.indexOf(`--${n}`) + 1] : d);
 const pairs = parseInt(arg('pairs', '3'), 10);
+// scenario 'build' = full /ship-ticket from the pre-feature commit; 'fixloop' = /ship-ticket review on the
+// planted-bug case (starts with 21 failing tests, the case where trimming Vitest output should matter).
+const scenario = arg('scenario', 'build');
 const outDir = path.resolve(arg('out', path.join(os.tmpdir(), `ab-cost-${Date.now()}`)));
 fs.mkdirSync(outDir, { recursive: true });
 const PRE = '4b5c1f8'; // plugin + SPEC.md, no tests, no implementation
@@ -33,7 +36,7 @@ function claude(cwd, env) {
     const p = spawn(
       'claude',
       [
-        '-p', '/ticket-to-merge:ship-ticket', '--plugin-dir', pluginDir, '--permission-mode', 'acceptEdits',
+        '-p', scenario === 'fixloop' ? '/ticket-to-merge:ship-ticket review 4b5c1f8' : '/ticket-to-merge:ship-ticket', '--plugin-dir', pluginDir, '--permission-mode', 'acceptEdits',
         '--allowedTools', 'Skill', 'Bash(npm run test:run*)', 'Bash(npx vitest*)', 'Bash(npx tsc --noEmit*)',
         'Bash(touch .tests.lock)', 'Bash(rm -f .tests.lock)', 'Bash(git status*)', 'Bash(git diff*)',
         'Bash(git merge-base*)', 'Bash(git rev-parse*)', 'Bash(git add*)', 'Bash(git commit*)',
@@ -51,7 +54,11 @@ const trials = [];
 for (let i = 1; i <= pairs; i++) {
   for (const config of ['baseline', 'lever']) {
     const wt = path.join(os.tmpdir(), `ttm-ab-${process.pid}-${config}-${i}`);
-    sh(repo, 'git', ['worktree', 'add', '--detach', wt, PRE]);
+    sh(repo, 'git', ['worktree', 'add', '--detach', wt, scenario === 'fixloop' ? REF : PRE]);
+    if (scenario === 'fixloop') {
+      fs.cpSync(path.join(here, 'cases', 'planted', 'src'), path.join(wt, 'src'), { recursive: true });
+      sh(wt, 'git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', 'commit', '-qam', 'planted bugs']);
+    }
     fs.symlinkSync(path.join(repo, 'node_modules'), path.join(wt, 'node_modules'));
     const env = config === 'baseline' ? { TTM_TRIM_VITEST: '0' } : { TTM_TRIM_VITEST: '' };
     const t0 = Date.now();
