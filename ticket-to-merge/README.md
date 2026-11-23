@@ -5,7 +5,7 @@ Ticket: **BOOK-101, search books by title or author** (`GET /api/books/search?q=
 
 | | |
 |---|---|
-| Branch | `capstone/book-101` (local, **not pushed yet**; push it to your fork for the link) |
+| Branch | [`capstone/book-101`](https://github.com/GQuirino/agent_bookshelf/tree/capstone/book-101) on my fork `GQuirino/agent_bookshelf` |
 | Contract | [`SPEC.md`](../SPEC.md) (interface, acceptance criteria, definition of done) |
 | Project rules | [`CLAUDE.md`](../CLAUDE.md) |
 | Plugin | `ticket-to-merge/` with `/ship-ticket` and `/review-pr` |
@@ -99,7 +99,7 @@ Where the money actually goes: a review pass is ~$0.24, about 60% of a full run.
 ## Not done / not verified
 
 - Stretch (+5): no learning reviewer with project memory and no `claude plugin eval` delta.
-- Not pushed; no PR opened. The branch link needs your push.
+- No PR opened (branch is pushed to the fork only).
 - No manual `curl` against a running server, only supertest.
 - `%` and `_` in `q` are not escaped (documented in `SPEC.md` as out of scope), so `q=%` matches every book.
 - The test lock's Stop-hook gate never had to block in a live run (tests were green first time); it is covered by a scratch test only.
