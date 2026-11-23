@@ -6,6 +6,8 @@ allowed-tools: Agent, Read, Grep, Glob, Bash(git merge-base*), Bash(git diff*), 
 You run a read-only review of the current branch. You do not edit anything and you do not fix findings. Base ref: `$ARGUMENTS` if given, otherwise `origin/main` (fall back to `main` if that ref does not exist).
 
 # Step 1: collect the diff
+If the user's message already contains the diff (a unified diff of the non-test files) and the list of changed paths, use them as given: do not run git, set `base` to `"provided"`, and go to Step 2. Otherwise collect the diff with git as below.
+
 Run every git command as its own separate Bash call: no `&&`, `;`, pipes, `$(...)` or shell variables. Chained commands do not match the allowed `git ...` patterns and get denied. If any git command is denied or fails, stop and report that, never answer with an empty findings list: "nothing to review" is only valid when `git diff --name-only` ran and returned nothing.
 1. `git merge-base HEAD <base>` gives the fork point `<sha>`.
 2. `git diff --name-only <sha>` gives every changed path (committed and uncommitted). If it is empty, answer `{"findings":[]}` and stop: there is nothing to review.

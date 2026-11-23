@@ -52,15 +52,39 @@ echo '${b64(head)}' | base64 -d | tar -xz
 git add -A && git commit -q -m "BOOK-101: search books by title or author"
 `;
 
-const PROMPT = `---
+// git does not run inside the eval's Bash sandbox on macOS (the /usr/bin/git shim cannot write its cache), so the diff
+// is computed here and given in the prompt, identically for both arms. The files are also in the workspace for Read/Grep.
+function diffOf(head) {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'ttm-diff-'));
+  const g = (...a) => execFileSync('git', ['-c', 'user.name=x', '-c', 'user.email=x@example.invalid', ...a], { cwd: d, encoding: 'utf8', maxBuffer: 1 << 26 });
+  g('init', '-q');
+  fs.cpSync(base, d, { recursive: true });
+  g('add', '-A'); g('commit', '-q', '-m', 'base');
+  g('rm', '-rq', '.'); fs.rmSync(path.join(d, 'src'), { recursive: true, force: true }); fs.rmSync(path.join(d, 'tests'), { recursive: true, force: true });
+  fs.cpSync(head, d, { recursive: true });
+  g('add', '-A');
+  return { paths: g('diff', '--cached', '--name-only', 'HEAD').trim(), diff: g('diff', '--cached', 'HEAD', '--', '.', ':(exclude)tests') };
+}
+const promptFor = (head) => {
+  const { paths, diff } = diffOf(head);
+  return `---
 max_turns: 30
 timeout_seconds: 900
 runs: 3
 allowed_tools: [Read, Glob, Grep, Skill, Agent]
 ---
 
-I just finished the ticket in SPEC.md on the \`feature\` branch. Please review my branch against \`main\` before I open the PR. Report only real problems with the evidence for each, and nothing else.
+I just finished the ticket in SPEC.md. The workspace has my branch checked out. Please review these changes before I open the PR. Report only real problems with the evidence for each, and nothing else.
+
+Changed paths:
+${paths}
+
+Diff of the non-test files:
+
+\`\`\`diff
+${diff}\`\`\`
 `;
+};
 const llm = (pass, fail) => `---\ntype: llm\n---\n${pass}\n${fail}\n`;
 
 const cases = {
@@ -98,7 +122,7 @@ for (const [name, c] of Object.entries(cases)) {
   fs.rmSync(dir, { recursive: true, force: true }); // generated output of this script only
   fs.mkdirSync(path.join(dir, 'graders'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'case.yaml'), `schema_version: "1.1"\nname: ${name}\ncontext:\n  scaffold_script: fixture.sh\n`);
-  fs.writeFileSync(path.join(dir, 'prompt.md'), PROMPT);
+  fs.writeFileSync(path.join(dir, 'prompt.md'), promptFor(c.head));
   fs.writeFileSync(path.join(dir, 'fixture.sh'), fixture(c.head), { mode: 0o755 });
   for (const [g, body] of Object.entries(c.graders)) fs.writeFileSync(path.join(dir, 'graders', `${g}.md`), body);
   console.log(name, fs.statSync(path.join(dir, 'fixture.sh')).size, 'bytes fixture');
