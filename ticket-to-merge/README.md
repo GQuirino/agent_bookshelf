@@ -98,18 +98,18 @@ Honest reading: the sample is small (3 runs, 4 planted bugs, all of them blatant
 
 ## Cost report
 
-Sources: interactive `/usage` for Review and Fix loop; `claude -p --output-format json` (`total_cost_usd`, `modelUsage`) for Build and for every A/B trial, because those ran headless.
+Sources: interactive `/usage` for the priced-stage table above; `claude -p --output-format json` (`total_cost_usd`, `modelUsage`) for the headless Build numbers and every A/B trial.
 
 **Priced stages (no lever, baseline).** Review and Fix loop were read from an interactive `/usage` after each run; Build is the mean of 3 headless runs, because I did not take a `/usage` reading for it.
 
 | Stage | Cost | Cache hit | Models | Source |
 |---|---|---|---|---|
-| Build: tests, implementation, one clean review pass (`/ship-ticket`) | **$0.39** (range $0.36-$0.44, n=3) | ~90% | haiku `test-writer` (~$0.01), sonnet for the rest | headless JSON |
+| Build: tests, implementation, one clean review pass (`/ship-ticket`) | **$0.62** (headless mean of 3: $0.39, range $0.36-$0.44) | 97% (headless ~90%) | haiku $0.0125 (`test-writer`), sonnet $0.61 | `/usage` |
 | Review: `/review-pr` on the planted-bug branch | **$0.1956** | 89% | sonnet $0.1858 (+ haiku $0.0098, see note) | `/usage` |
 | Fix loop: `/ship-ticket review` from 21 failing tests | **$0.56** | 97% | sonnet $0.56 | `/usage` |
-| Total, one ticket | **~$0.39** if the first draft is clean; **~$0.75** if it needs the fix loop (estimate: Build minus its ~$0.20 review pass, plus Fix loop) | | | derived |
+| Total, one ticket | **~$0.62** if the first draft is clean; **~$0.98** if it needs the fix loop (estimate: Build minus its ~$0.20 review pass, plus Fix loop) | | | derived |
 
-Headless runs measured the same stages at $0.20-0.25 (review) and $0.53-0.55 (fix loop), so the two sources agree. Note: the `/usage` review reading shows $0.0098 of haiku. The reviewers are sonnet and no `test-writer` runs in `/review-pr`, so I cannot attribute it; it is under 5% of the cost. `/usage` figures come from an interactive session that also loads my own CLAUDE.md and MCP servers, so they can run slightly above the clean headless runs.
+Headless runs measured Review at $0.20-0.25 and Fix loop at $0.53-0.55, so those two sources agree. Build does not: the interactive `/usage` reading ($0.62, 22 requests, 356 lines added) is about 60% above the headless mean ($0.39). It is one reading, and my interactive session also loads my own CLAUDE.md, MCP servers and hooks, which add context to every request; the headless runs are the cleaner, repeatable number and all A/B comparisons use them. Note: the `/usage` review reading shows $0.0098 of haiku. The reviewers are sonnet and no `test-writer` runs in `/review-pr`, so I cannot attribute it; it is under 5% of the cost. `/usage` figures come from an interactive session that also loads my own CLAUDE.md and MCP servers, so they can run slightly above the clean headless runs.
 
 **The one lever: a PostToolUse hook (`hooks/trim-vitest.js`) that shows the model only the failing Vitest tests.** It replaces the tool output via `updatedToolOutput`; `TTM_TRIM_VITEST=0` disables it for the baseline. Verified live: the model saw 4 lines with the hook, 16 without. On a real failing run it cuts 34,958 characters to 6,915.
 
