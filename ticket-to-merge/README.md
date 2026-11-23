@@ -132,7 +132,7 @@ Where the money actually goes: a review pass is ~$0.24, about 60% of a full run.
 
 ## Not done / not verified
 
-- Stretch (+5): no learning reviewer with project memory. The `claude plugin eval` Δ was measured over 4 cases and is zero after one prompt fix (see the section below); it measures review of a supplied diff, not the full git flow.
+- Stretch (+5): no learning reviewer with project memory (screened for a miss, found none, see the section below). The `claude plugin eval` Δ was measured over 4 cases and is zero after one prompt fix (see the section below); it measures review of a supplied diff, not the full git flow.
 - No PR opened (branch is pushed to the fork only).
 - No manual `curl` against a running server, only supertest.
 - `%` and `_` in `q` are not escaped (documented in `SPEC.md` as out of scope), so `q=%` matches every book.
@@ -180,4 +180,6 @@ What the attempt surfaced and fixed in `skills/review-pr/SKILL.md`:
 - **Chained git commands:** `sha=$(git merge-base ...) && git diff ...` does not match `Bash(git ...)` allow-rules and was denied. The skill now runs each git command separately and must not answer with an empty list when git is denied or fails. I cannot confirm that this explains the one unexplained zero-findings run in the earlier eval.
 - **Supplied diff:** if the message already contains the diff and changed paths, the skill uses them and skips git.
 
-Spend on the stretch: about $17 in total (several plugin-eval runs plus debugging runs). Not done: a learning reviewer with project memory.
+**Learning reviewer with project memory: screened, not built.** A learner needs a bug the current reviewer misses, so I first looked for one. I planted six quiet deviations from `SPEC.md` or `CLAUDE.md` (`review-screen`, committed before its first run): the search also matching `description`, an extra `count` field, 404 instead of an empty list on no match, a plain-text error instead of JSON, a missing `.js` import suffix (which `tsc` accepts under `moduleResolution: bundler`), and `router.all` instead of `router.get`. The plugin found all six in all three runs (18/18, $0.80), so there is nothing for a memory to learn on these. I stopped there rather than build the memory hook and skill for a bug that is never missed. A real attempt would need bugs the reviewer cannot see from `SPEC.md`/`CLAUDE.md` plus the diff (for example a multi-file change or behaviour that only shows at runtime), and a hook rule so a memory-enabled reviewer can write only to its memory folder.
+
+Spend on the stretch: about $18 in total (several plugin-eval runs plus debugging and screening runs). Not done: a learning reviewer with project memory.
