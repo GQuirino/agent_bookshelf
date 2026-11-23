@@ -2,7 +2,7 @@
 name: ship-ticket
 description: Ship the ticket described in SPEC.md test-first. A test-writer agent writes failing tests, tests/ is locked, then a be-writer agent makes them green. Run it from the repo root on the ticket branch.
 disable-model-invocation: true
-allowed-tools: Agent, Read, Grep, Glob, Bash(npm run test:run*), Bash(npx tsc --noEmit*), Bash(touch .tests.lock), Bash(rm -f .tests.lock), Bash(git status*), Bash(git diff*), Bash(git add*), Bash(git commit*)
+allowed-tools: Agent, Skill, Read, Grep, Glob, Bash(npm run test:run*), Bash(npx tsc --noEmit*), Bash(touch .tests.lock), Bash(rm -f .tests.lock), Bash(git status*), Bash(git diff*), Bash(git merge-base*), Bash(git add*), Bash(git commit*)
 ---
 You orchestrate one ticket from SPEC.md to a green build. You never write code yourself; the specialists do. Delegation prompts are short: the task, the file paths that matter, the constraints, and the return format. No transcripts, no reasoning of yours, no file contents.
 
@@ -26,5 +26,14 @@ Run `touch .tests.lock`. From now on `tests/` is read-only for every agent (the 
 3. Verify yourself: run `npm run test:run` and `npx tsc --noEmit`. Check `git diff --stat` touches only what SPEC.md's definition of done allows.
 4. Checkpoint: `git add src && git commit -m "Implement the ticket"` with a body line "Revert with: git revert HEAD".
 
-# Phase 4: UNLOCK and report
-Run `rm -f .tests.lock`. Final report (under 150 words): files changed per agent, the exact `npm run test:run` summary line and typecheck result you ran yourself, any test that was corrected and why, and what you did not verify.
+# Phase 4: REVIEW and FIX (tests stay locked)
+Run up to 2 rounds. Each round:
+1. Invoke the `ticket-to-merge:review-pr` skill (base `origin/main`). It returns one deduplicated findings list from two read-only reviewers. Do not give the reviewers hints.
+2. Act only on `high` and `medium` findings. Ignore `low`. If there are none, the loop is done.
+3. Judge each finding against SPEC.md before acting. A finding that contradicts SPEC.md or is out of scope is rejected: record it as "rejected, reason" in the report instead of changing code.
+4. Send the accepted findings, and only those, to `ticket-to-merge:be-writer` (task, file and line, the evidence, the SPEC line it breaks). Tests are locked. If a finding is only "a SPEC criterion has no test", run `rm -f .tests.lock`, call `ticket-to-merge:test-writer` for that one test, run `touch .tests.lock`, then continue.
+5. Verify yourself: `npm run test:run` and `npx tsc --noEmit`. Checkpoint: `git add src tests && git commit -m "Fix review findings (round N)"` with the body line "Revert with: git revert HEAD".
+Never run a third round. Anything still open after round 2 goes in the report as unresolved.
+
+# Phase 5: UNLOCK and report
+Run `rm -f .tests.lock`. Final report (under 150 words): files changed per agent, the exact `npm run test:run` summary line and typecheck result you ran yourself, any test that was corrected and why, review rounds run with findings fixed, rejected (with reason) and unresolved, and what you did not verify.
