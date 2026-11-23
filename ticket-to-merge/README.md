@@ -3,8 +3,6 @@
 A Claude Code plugin that ships one ticket test-first and reviews the result with read-only agents, behind a file guardrail.
 Ticket: **BOOK-101, search books by title or author** (`GET /api/books/search?q=`).
 
-_Copy of the submitted report, which lives in [`book-101/README.md`](../book-101/README.md) (the source of truth if the two ever differ)._
-
 | | |
 |---|---|
 | Branch | [`capstone/book-101`](https://github.com/GQuirino/agent_bookshelf/tree/capstone/book-101) on my fork `GQuirino/agent_bookshelf` |

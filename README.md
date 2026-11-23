@@ -1,4 +1,4 @@
-> **Capstone BOOK-101 (Ticket to Merge):** the deliverables report is [`book-101/README.md`](book-101/README.md).
+> **Capstone BOOK-101 (Ticket to Merge):** the deliverables README is [`ticket-to-merge/README.md`](ticket-to-merge/README.md).
 
 ```
 ╔═════════════════════════════════════════════╗
