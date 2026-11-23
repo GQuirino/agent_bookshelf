@@ -151,4 +151,5 @@ vite.config.ts.timestamp-*
 *.sqlite3
 
 # ticket-to-merge: implement-phase test lock
-.claude/tests.lock
+.tests.lock
+.claude/stop-gate.count

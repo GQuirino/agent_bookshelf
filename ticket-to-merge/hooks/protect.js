@@ -4,7 +4,8 @@
 //      (.env.example is allowed). Edit/Write/MultiEdit/NotebookEdit are checked by path
 //      (resolved, symlink-resolved, inode-compared). Bash is checked by command text.
 //      Read is blocked for .env only.
-//   2. While <project>/.claude/tests.lock exists: block edits to tests/ (implement phase).
+//   2. While <project>/.tests.lock exists: block edits to tests/ (implement phase).
+//      Subagents (hook input has agent_id) may never touch the lock file itself.
 // Exit 2 blocks the call; stderr is shown to the agent.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,7 +39,9 @@ const tool = input.tool_name || '';
 const ti = input.tool_input || {};
 const cwd = input.cwd || process.cwd();
 const root = process.env.CLAUDE_PROJECT_DIR || cwd;
-const locked = fs.existsSync(path.join(root, '.claude', 'tests.lock'));
+const locked = fs.existsSync(path.join(root, '.tests.lock'));
+// Subagent calls carry agent_id; the main thread (the orchestrator) does not.
+const isSubagent = Boolean(input.agent_id);
 
 // ---- protected files by identity (hardlinks) ----
 function knownProtectedFiles() {
@@ -172,7 +175,7 @@ function analyzeBash(cmd) {
     const noFdRedirects = flat.replace(/\d*>&\d+|\d*>\s*\/dev\/null/g, '');
     const redirect = />>?\s*[^\s&]/.test(noFdRedirects);
     if (/(^|[\s/=])tests(\/|$|\s)/.test(flat) && (writeish.test(flat) || redirect)) {
-      return 'tests/ is read-only during the implement phase (.claude/tests.lock exists).';
+      return 'tests/ is read-only during the implement phase (.tests.lock exists).';
     }
   }
   return null;
@@ -185,6 +188,15 @@ const pathTools = {
   MultiEdit: ti.file_path,
   NotebookEdit: ti.notebook_path,
 };
+
+// Only the orchestrator may flip the phase: a subagent must never create or remove the lock.
+if (isSubagent) {
+  const touchesLock =
+    tool in pathTools
+      ? path.basename(path.resolve(cwd, String(pathTools[tool] || ''))).toLowerCase() === '.tests.lock'
+      : tool === 'Bash' && String(ti.command || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes('testslock');
+  if (touchesLock) block('only the orchestrator may change the implement-phase lock (.tests.lock).');
+}
 
 if (tool in pathTools) {
   const p = pathTools[tool];

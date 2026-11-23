@@ -19,13 +19,13 @@ fs.writeFileSync(path.join(proj, 'bookshelf.db'), 'db');
 fs.writeFileSync(path.join(proj, '.env'), 'SECRET=1');
 fs.symlinkSync(path.join(proj, '.env'), path.join(proj, 'notes.txt'));
 fs.linkSync(path.join(proj, 'src', 'db', 'seed.sql'), path.join(proj, 'innocent.sql'));
-const lockFile = path.join(proj, '.claude', 'tests.lock');
+const lockFile = path.join(proj, '.tests.lock');
 
-function run(tool_name, tool_input, { lock = false } = {}) {
+function run(tool_name, tool_input, { lock = false, agent = false } = {}) {
   if (lock) fs.writeFileSync(lockFile, '');
   else fs.rmSync(lockFile, { force: true });
   const r = spawnSync('node', [HOOK], {
-    input: JSON.stringify({ tool_name, tool_input, cwd: proj }),
+    input: JSON.stringify({ tool_name, tool_input, cwd: proj, ...(agent ? { agent_id: 'a1', agent_type: 'ticket-to-merge:be-writer' } : {}) }),
     env: { ...process.env, CLAUDE_PROJECT_DIR: proj },
     encoding: 'utf8',
   });
@@ -159,6 +159,20 @@ expectAllow('lock: vitest one file', bash('npx vitest run tests/routes/api.test.
 expectAllow('lock: cat tests file', bash('cat tests/routes/api.test.ts', L));
 expectAllow('lock: grep tests', bash('grep -rn search tests', L));
 expectBlock('lock: protected still blocked', edit('.env', L));
+
+// --- subagents may not flip the lock; the main thread may ---
+const A = { lock: true, agent: true };
+expectBlock('agent: rm lock', bash('rm -f .tests.lock', A));
+expectBlock('agent: rm lock (quoted)', bash("rm -f '.tes''ts.lock'", A));
+expectBlock('agent: touch lock', bash('touch .tests.lock', { agent: true }));
+expectBlock('agent: write lock', write('.tests.lock', A));
+expectBlock('agent: edit lock via ./', edit('./.tests.lock', A));
+expectBlock('agent: mv lock', bash('mv .tests.lock /tmp/x', A));
+expectAllow('agent: edit src while locked', edit('src/routes/api.ts', A));
+expectAllow('agent: run tests while locked', bash('npm run test:run', A));
+expectBlock('agent: still cannot edit tests', edit('tests/x.test.ts', A));
+expectAllow('main: rm lock', bash('rm -f .tests.lock', L));
+expectAllow('main: touch lock', bash('touch .tests.lock'));
 
 let failed = 0;
 for (const [name, ok, want, got] of cases) {
