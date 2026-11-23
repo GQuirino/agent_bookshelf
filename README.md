@@ -1,3 +1,5 @@
+> **Capstone BOOK-101 (Ticket to Merge):** the deliverables README is [`ticket-to-merge/README.md`](ticket-to-merge/README.md).
+
 ```
 ╔═════════════════════════════════════════════╗
 ║│▓│▒│░│█│▓│░│▒│█│▓│▒│░│█│▓│░│▒│█│▓│▒│░│█│▓│░│║
