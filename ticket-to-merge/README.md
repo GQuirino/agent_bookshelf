@@ -10,6 +10,36 @@ Ticket: **BOOK-101, search books by title or author** (`GET /api/books/search?q=
 | Project rules | [`CLAUDE.md`](../CLAUDE.md) |
 | Plugin | `ticket-to-merge/` with `/ship-ticket` and `/review-pr` |
 
+## Submission checklist
+
+| Required line | Where | Status |
+|---|---|---|
+| Repo link: fork and branch | table above | done |
+| How to run `/ship-ticket` and `/review-pr` | [Run it](#run-it) | done |
+| `SPEC.md` and `CLAUDE.md` | table above | done |
+| Plugin passes `claude plugin validate` | [Packaging](#packaging) | passes (one warning: no icon) |
+| Test run, green | [Proof](#proof) | 43/43, `tsc` clean |
+| Planted bugs: recall and precision over 3 runs | [Proof](#proof) | recall 12/12, precision 12/12, 0 false positives on clean code |
+| Cost report with one lever, quality re-checked | [Cost report](#cost-report) | done; the lever gave no measurable saving (reported as such) |
+| Design: why this split, which models, what I'd cut | [Design](#design) | done |
+| Stretch (+5) | [Not done](#not-done--not-verified) | not attempted |
+
+## Packaging
+
+```
+ticket-to-merge/
+  .claude-plugin/plugin.json
+  skills/{ship-ticket,review-pr}/SKILL.md
+  agents/{test-writer,be-writer,review-security,review-correctness}.md
+  hooks/{hooks.json,protect.js,stop-gate.js,trim-vitest.js}
+  evals/            # planted bugs, clean cases, runners
+```
+
+```bash
+claude plugin validate ./ticket-to-merge   # passes; only warning is the missing icon
+claude --plugin-dir ./ticket-to-merge
+```
+
 ## Run it
 
 ```bash
@@ -68,14 +98,18 @@ Honest reading: the sample is small (3 runs, 4 planted bugs, all of them blatant
 
 ## Cost report
 
-Numbers come from `claude -p --output-format json` (`total_cost_usd`, `modelUsage`), the same figures `/usage` aggregates. Paste an interactive `/usage` screenshot here if the grader wants that exact view.
+Sources: interactive `/usage` for Review and Fix loop; `claude -p --output-format json` (`total_cost_usd`, `modelUsage`) for Build and for every A/B trial, because those ran headless.
 
-| Stage (one full `/ship-ticket`, no lever) | Cost |
-|---|---|
-| Whole run: tests, build, one review pass | **~$0.39** mean of 3 (range $0.36-$0.44) |
-| of which `test-writer` (haiku) | ~$0.01 (~3%) |
-| One `/review-pr` pass on its own | ~$0.20-0.25 |
-| Cache hit rate | ~90% |
+**Priced stages (no lever, baseline).** Review and Fix loop were read from an interactive `/usage` after each run; Build is the mean of 3 headless runs, because I did not take a `/usage` reading for it.
+
+| Stage | Cost | Cache hit | Models | Source |
+|---|---|---|---|---|
+| Build: tests, implementation, one clean review pass (`/ship-ticket`) | **$0.39** (range $0.36-$0.44, n=3) | ~90% | haiku `test-writer` (~$0.01), sonnet for the rest | headless JSON |
+| Review: `/review-pr` on the planted-bug branch | **$0.1956** | 89% | sonnet $0.1858 (+ haiku $0.0098, see note) | `/usage` |
+| Fix loop: `/ship-ticket review` from 21 failing tests | **$0.56** | 97% | sonnet $0.56 | `/usage` |
+| Total, one ticket | **~$0.39** if the first draft is clean; **~$0.75** if it needs the fix loop (estimate: Build minus its ~$0.20 review pass, plus Fix loop) | | | derived |
+
+Headless runs measured the same stages at $0.20-0.25 (review) and $0.53-0.55 (fix loop), so the two sources agree. Note: the `/usage` review reading shows $0.0098 of haiku. The reviewers are sonnet and no `test-writer` runs in `/review-pr`, so I cannot attribute it; it is under 5% of the cost. `/usage` figures come from an interactive session that also loads my own CLAUDE.md and MCP servers, so they can run slightly above the clean headless runs.
 
 **The one lever: a PostToolUse hook (`hooks/trim-vitest.js`) that shows the model only the failing Vitest tests.** It replaces the tool output via `updatedToolOutput`; `TTM_TRIM_VITEST=0` disables it for the baseline. Verified live: the model saw 4 lines with the hook, 16 without. On a real failing run it cuts 34,958 characters to 6,915.
 
