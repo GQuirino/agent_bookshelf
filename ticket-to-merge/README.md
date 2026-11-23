@@ -22,7 +22,7 @@ Ticket: **BOOK-101, search books by title or author** (`GET /api/books/search?q=
 | Planted bugs: recall and precision over 3 runs | [Proof](#proof) | recall 12/12, precision 12/12, 0 false positives on clean code |
 | Cost report with one lever, quality re-checked | [Cost report](#cost-report) | done; the lever gave no measurable saving (reported as such) |
 | Design: why this split, which models, what I'd cut | [Design](#design) | done |
-| Stretch (+5) | [Plugin eval Δ](#stretch-claude-plugin-eval-δ) | `claude plugin eval` with-without run: **Δ = 0.00** (null result, reported as is) |
+| Stretch (+5) | [Plugin eval Δ](#stretch-claude-plugin-eval-δ) | `claude plugin eval` with-without over 4 cases: **mean Δ −0.10** (no gain on recall, worse precision on one case; reported as is) |
 
 ## Packaging
 
@@ -132,7 +132,7 @@ Where the money actually goes: a review pass is ~$0.24, about 60% of a full run.
 
 ## Not done / not verified
 
-- Stretch (+5): no learning reviewer with project memory. The `claude plugin eval` Δ was measured and is zero (see the section below); it measures review of a supplied diff, not the full git flow.
+- Stretch (+5): no learning reviewer with project memory. The `claude plugin eval` Δ was measured over 4 cases and is slightly negative (see the section below); it measures review of a supplied diff, not the full git flow.
 - No PR opened (branch is pushed to the fork only).
 - No manual `curl` against a running server, only supertest.
 - `%` and `_` in `q` are not escaped (documented in `SPEC.md` as out of scope), so `q=%` matches every book.
@@ -148,15 +148,21 @@ claude plugin eval ./ticket-to-merge --eval-dir plugin-evals --model claude-sonn
   --scaffold --trust-plugin --no-publish
 ```
 
-**Result (3 runs per arm and case, 1 judge = sonnet):**
+**Result** (sonnet judge; with = plugin, without = plain Claude given the same diff; Δ = with minus without):
 
-| Case | With plugin | Without plugin | Δ | Cost per run (with / without) |
-|---|---|---|---|---|
-| `review-planted` (4 bugs) | 1.00 (12/12 bugs) | 1.00 (12/12 bugs) | **0.00** | ~$0.19 / ~$0.09 |
-| `review-clean` | 1.00 (no false positives, 3/3) | 1.00 (3/3) | **0.00** | ~$0.12 / ~$0.11 |
-| **Mean Δ** | | | **0.00** | |
+| Case | What it tests | Runs per arm | With plugin | Without | Δ | Cost per run (with / without) |
+|---|---|---|---|---|---|---|
+| `review-planted` | 4 blatant bugs | 3 | 1.00 (12/12 bugs) | 1.00 (12/12) | 0.00 | ~$0.19 / ~$0.09 |
+| `review-subtle` | 6 subtler spec deviations (order by id, author param without wildcards, limit checked before trim, bare array for empty query, wrong error text, repeated `q` coerced) | 5 | 1.00 (30/30 bugs) | 1.00 (30/30) | 0.00 | ~$0.28 / ~$0.16 |
+| `review-clean` | real implementation, no defects | 3 | 1.00 (3/3 clean) | 1.00 (3/3) | 0.00 | ~$0.12 / ~$0.11 |
+| `review-clean-variant` | behaviour-identical refactor, no defects | 5 | **0.60** (3/5 clean) | 1.00 (5/5) | **-0.40** | ~$0.13 / ~$0.11 |
+| **Mean Δ over the 4 cases** | | | | | **-0.10** | |
 
-**Honest reading: the plugin adds nothing measurable here, and costs about twice as much on the planted case.** The four planted bugs are blatant and the diff is small, so plain Claude finds all of them too. This matches the design section: the value of the two-reviewer split is not shown by this eval, and the cheapest change would be fewer reviewers. The plugin did fire in 6 of 6 runs.
+**Honest reading.**
+- **Recall: no difference.** Even the harder `review-subtle` set was fully found by both arms in every run, so this eval cannot separate them on recall. I wrote `review-subtle` before running it and did not change the bugs afterwards. A score of 1.00 in both arms means the test is too easy for the plugin to show an advantage, not that the plugin and plain Claude are equally good on hard bugs. An eval that discriminates would need a larger diff or bugs that do not contradict a line of `SPEC.md`.
+- **Precision: the plugin was worse on one case.** On `review-clean-variant` it raised a finding in 2 of 5 runs and plain Claude in 0 of 5. Both findings were `low` severity and the same point: the test named "orders matches by title" sends an empty query, so it never exercises `searchBooks` ordering. That observation is accurate, but it is a test-coverage gap, not a defect in the change, and my judge rule counts any claimed gap as a fail. The correctness reviewer reports test gaps by design ("a SPEC criterion with no test"), so this is a known cost of its prompt. I did not edit the prompt after seeing this, to avoid tuning to the result. A cheap fix would be to drop test-gap findings or to report them in a separate field.
+- **Cost:** the plugin arm cost roughly twice as much on the planted cases ($0.19 vs $0.09; $0.28 vs $0.16) and about the same on clean ones.
+- The plugin fired in every plugin-arm run of the new cases (10/10).
 
 Limits you should know about:
 - **The diff is given in the prompt, for both arms.** Inside the eval's Bash sandbox on macOS, `/usr/bin/git` cannot write its xcrun cache under `/var/folders` and exits 72, so `/review-pr` cannot run git there. The eval therefore measures "review the diff I gave you" (the skill accepts a supplied diff). The git path of `/review-pr` was checked separately in a normal headless run after the last edits: 4/4 planted bugs, 0 permission denials, $0.25.
@@ -168,4 +174,4 @@ What the attempt surfaced and fixed in `skills/review-pr/SKILL.md`:
 - **Chained git commands:** `sha=$(git merge-base ...) && git diff ...` does not match `Bash(git ...)` allow-rules and was denied. The skill now runs each git command separately and must not answer with an empty list when git is denied or fails. I cannot confirm that this explains the one unexplained zero-findings run in the earlier eval.
 - **Supplied diff:** if the message already contains the diff and changed paths, the skill uses them and skips git.
 
-Spend on the stretch: about $10 (five plugin-eval runs of 12 and several single-run debugging runs). Not done: a learning reviewer with project memory.
+Spend on the stretch: about $13.50 in total (several plugin-eval runs plus debugging runs). Not done: a learning reviewer with project memory.
