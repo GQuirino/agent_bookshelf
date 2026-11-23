@@ -1,0 +1,52 @@
+{
+  "base_ref": "4b5c1f8",
+  "clean_commit": "6fc26ca",
+  "cases": {
+    "clean": {
+      "bugs": []
+    },
+    "clean-variant": {
+      "bugs": []
+    },
+    "planted": {
+      "bugs": [
+        {
+          "id": "P1-sql-injection",
+          "file": "src/models/book.ts",
+          "lines": [
+            24,
+            24
+          ],
+          "what": "search SQL built by string interpolation of user input"
+        },
+        {
+          "id": "P2-off-by-one",
+          "file": "src/routes/api.ts",
+          "lines": [
+            35,
+            35
+          ],
+          "what": "length check is >= 100 so exactly 100 chars is rejected (spec: >100 is an error)"
+        },
+        {
+          "id": "P3-no-trim",
+          "file": "src/routes/api.ts",
+          "lines": [
+            33,
+            33
+          ],
+          "what": "query is not trimmed before length check and search"
+        },
+        {
+          "id": "P4-route-order",
+          "file": "src/routes/api.ts",
+          "lines": [
+            15,
+            29
+          ],
+          "what": "/books/search registered after /books/:id, so :id shadows it"
+        }
+      ]
+    }
+  }
+}

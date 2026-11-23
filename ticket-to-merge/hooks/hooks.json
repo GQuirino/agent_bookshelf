@@ -7,7 +7,9 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/protect.js"],
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/protect.js"
+            ],
             "onFailure": "block"
           }
         ]
@@ -19,7 +21,23 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.js"]
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.js"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/trim-vitest.js"
+            ]
           }
         ]
       }
